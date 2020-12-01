@@ -1,65 +1,100 @@
 import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import { CurrentPositionCard, RemotePositionCard } from '../components/cards'
+import { TextButton } from '../components/buttons'
+import Map from '../components/map'
+import React, {useEffect, useState} from 'react'
+import { fetchHelper } from "./_app"
+import useSWR from 'swr'
+
+export const PositionContext = React.createContext({})
+export const AirDataContext = React.createContext()
+
 
 export default function Home() {
+  const [permission, setPermission] = useState(false)
+  const [prompt, locationPrompt] = useState(true)
+  const [show, setShowDialog] = useState(true)
+  const [initPosition, setInitPosition] = useState(null)
+  const [currentPos, setCurrentPos] = useState(null)
+  const [remoteCard, showRemoteCard] = useState(false)
+  const [data, setData] = useState(null)
+  
+  useEffect(() => {
+    if (typeof(document) !== undefined) {
+      if (permission && !initPosition && navigator.geolocation) { 
+        navigator.geolocation.getCurrentPosition((position) => {
+          setInitPosition({
+            lng: position.coords.longitude,
+            lat: position.coords.latitude, 
+          })
+          setCurrentPos({
+            lng: position.coords.longitude,
+            lat: position.coords.latitude, 
+          })
+        }, (error) => {
+          // Set Error State
+        })
+      }
+    }
+  })
+
+  function handlePermission(e, accept = false) {
+    e.preventDefault()
+    if (accept) {
+      setPermission(true)
+    } else {
+      //
+    }
+
+    locationPrompt(false)
+    setTimeout(() => {
+      setShowDialog(false)
+    }, 500)
+  }
+
+  function toggleRemoteCard() {
+    showRemoteCard(true)
+  }
+
+  function getData() {
+    return data
+  }
+
   return (
-    <div className={styles.container}>
+    <>
       <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
+        <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.css' rel='stylesheet' />
       </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+      <div className="container flex flex-col justify-center p-6 mx-auto lg:h-screen xl:w-9/12">
+        <h1 className="mb-6">where is the air</h1>
+        <div className={`${!prompt ? 'opacity-0 translate-y-1/2' : ''} ${!show ? 'hidden': 'block'} fixed bottom-0 mb-6 max-w-xs p-6 rounded-lg shadow-xl transition ease-out duration-500 opacity transform`}>
+          <p className="mb-3 text-sm">This website requires location services. If you accept, location data including your precise latitude and longitude will be sent to AirNow to determine air quality at your location.</p>
+          <div className="flex">
+            <TextButton background="bg-gray-400 hover:bg-gray-500" text="No Thanks" click={(e) => handlePermission(e)} />
+            <div className='mx-1'/>
+            <TextButton background="bg-lightGreen hover:bg-green-500" text="Accept" click={(e) => handlePermission(e, true)}/>
+          </div>
         </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
+        {(permission) &&
+        <PositionContext.Provider value={{
+          initialPosition: initPosition, 
+          updatePosition: setCurrentPos,
+          currentPosition: currentPos,
+          currentData: getData, 
+          updateData: setData
+        }}>
+        <div className="grid grid-rows-6 sm:grid-rows-3 lg:grid-rows-6 sm:grid-cols-2 gap-3 lg:gap-x-12 lg:h-page justify-self-center">
+          <div className="row-span-3 lg:row-span-6 rounded-xl overflow-hidden shadow-2xl">
+          {(initPosition) &&
+            <Map />
+          }
+          </div>
+          <CurrentPositionCard />
+          {/* <RemotePositionCard /> */}
+        </div> 
+        </PositionContext.Provider>
+        }
+      </div>
+    </>
   )
 }
